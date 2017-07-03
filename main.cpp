@@ -7,8 +7,8 @@ digital_analog_converter led(
 		16,				//bits
 		10.0,				//min_voltage (dac output at transmitting 0}
 		-10.0,				//max_voltage (dac output at transmitting 2^bits-1 BEWARE ORIENTATION!!!)
-		-0.01,				//min_voltage_constrain
-		5,				//max_voltage_contrain
+		-2.1,				//min_voltage_constrain
+		9.1,				//max_voltage_contrain
 		0				//Chip select
 		);
 
@@ -20,35 +20,36 @@ analog_digital_converter photodiode(
 		1				//Chip select
 		);
 
-
-int photodiode_value = 0;
-double led_value = 0.0;
-double led_step = 0.5;
-
-int goal = 20;
-
-void setup(){
-}
-
-void loop(){
-	photodiode_value = photodiode.read();
-//	std::cout << "photdiode = " << photodiode_value << std::endl;
-	if(photodiode_value < goal){
-		led_value += led_step;
+void stabilize(){
+	int refresh_rate = 10;
+	int goal = 30;
+	pid control(	0,	//kprop
+			200, 	//kint
+			0,	//kdiff
+			1.0 * refresh_rate / 1000.0	//dt
+			);
+	int photodiode_value = 0;
+	double led_value = 0.0;
+	led.transmit_voltage(0);
+	control.set_goal(goal);
+	control.set_value(led_value);
+	std::cout << "Goal\tIn\tOut" << std::endl; 
+	for(;;){
+		photodiode_value = photodiode.read();
+		led_value = .1 * control.update(photodiode_value);
+		std::cout << goal << "\t" << photodiode_value << "\t" << led_value << std::endl;
+		led.transmit_voltage(led_value);
+		delay(refresh_rate);
 	}
-	if(photodiode_value > goal){
-		led_value -= led_step;
-	}
-//	std::cout << "LED       = " << led_value << std::endl;
-	led.transmit_voltage(led_value);
-//	delay(1000);
-}
+};
+
+
+
+
+
 
 int main (void){
-	setup();
-	for (;;){
-			loop();
-	}
+	stabilize();
 	return 0 ;
 }
 
